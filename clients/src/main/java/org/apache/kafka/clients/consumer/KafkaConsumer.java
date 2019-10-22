@@ -744,9 +744,17 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
             Sensor throttleTimeSensor = Fetcher.throttleTimeSensor(metrics, metricsRegistry);
             int heartbeatIntervalMs = config.getInt(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG);
 
+            final Selector selector = new Selector(
+                    config.getLong(ConsumerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG),
+                    metrics,
+                    time,
+                    config.getInt(ConsumerConfig.CONNECT_TIMEOUT_MS_CONFIG),
+                    metricGrpPrefix,
+                    channelBuilder,
+                    logContext);
             ApiVersions apiVersions = new ApiVersions();
             NetworkClient netClient = new NetworkClient(
-                    new Selector(config.getLong(ConsumerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG), metrics, time, metricGrpPrefix, channelBuilder, logContext),
+                    selector,
                     this.metadata,
                     clientId,
                     100, // a fixed large enough value will suffice for max in-flight requests
@@ -755,6 +763,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                     config.getInt(ConsumerConfig.SEND_BUFFER_CONFIG),
                     config.getInt(ConsumerConfig.RECEIVE_BUFFER_CONFIG),
                     config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG),
+                    config.getInt(ConsumerConfig.CONNECT_TIMEOUT_MS_CONFIG),
                     ClientDnsLookup.forConfig(config.getString(ConsumerConfig.CLIENT_DNS_LOOKUP_CONFIG)),
                     time,
                     true,

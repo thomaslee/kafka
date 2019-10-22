@@ -126,6 +126,8 @@ public class Selector implements Selectable, AutoCloseable {
     private final MemoryPool memoryPool;
     private final long lowMemThreshold;
     private final int failedAuthenticationDelayMs;
+    private final HashMap<String, Long> connecting;
+    private final long connectTimeoutNanos;
 
     //indicates if the previous call to poll was able to make progress in reading already-buffered data.
     //this is used to prevent tight loops when memory is not available to read any more data
@@ -150,6 +152,7 @@ public class Selector implements Selectable, AutoCloseable {
             int failedAuthenticationDelayMs,
             Metrics metrics,
             Time time,
+            int connectTimeoutMs,
             String metricGrpPrefix,
             Map<String, String> metricTags,
             boolean metricsPerConnection,
@@ -167,6 +170,8 @@ public class Selector implements Selectable, AutoCloseable {
         this.channels = new HashMap<>();
         this.explicitlyMutedChannels = new HashSet<>();
         this.outOfMemory = false;
+        this.connecting = new HashMap<>();
+        this.connectTimeoutNanos = connectTimeoutMs * 1000L * 1000L;
         this.completedSends = new ArrayList<>();
         this.completedReceives = new ArrayList<>();
         this.stagedReceives = new HashMap<>();
@@ -191,6 +196,7 @@ public class Selector implements Selectable, AutoCloseable {
                     long connectionMaxIdleMs,
                     Metrics metrics,
                     Time time,
+                    int connectTimeoutMs,
                     String metricGrpPrefix,
                     Map<String, String> metricTags,
                     boolean metricsPerConnection,
@@ -198,7 +204,7 @@ public class Selector implements Selectable, AutoCloseable {
                     ChannelBuilder channelBuilder,
                     MemoryPool memoryPool,
                     LogContext logContext) {
-        this(maxReceiveSize, connectionMaxIdleMs, NO_FAILED_AUTHENTICATION_DELAY, metrics, time, metricGrpPrefix, metricTags,
+        this(maxReceiveSize, connectionMaxIdleMs, NO_FAILED_AUTHENTICATION_DELAY, metrics, time, connectTimeoutMs, metricGrpPrefix, metricTags,
                 metricsPerConnection, recordTimePerConnection, channelBuilder, memoryPool, logContext);
     }
 
@@ -207,32 +213,34 @@ public class Selector implements Selectable, AutoCloseable {
                     int failedAuthenticationDelayMs,
                     Metrics metrics,
                     Time time,
+                    int connectTimeoutMs,
                     String metricGrpPrefix,
                     Map<String, String> metricTags,
                     boolean metricsPerConnection,
                     ChannelBuilder channelBuilder,
                     LogContext logContext) {
-        this(maxReceiveSize, connectionMaxIdleMs, failedAuthenticationDelayMs, metrics, time, metricGrpPrefix, metricTags, metricsPerConnection, false, channelBuilder, MemoryPool.NONE, logContext);
+        this(maxReceiveSize, connectionMaxIdleMs, failedAuthenticationDelayMs, metrics, time, connectTimeoutMs, metricGrpPrefix, metricTags, metricsPerConnection, false, channelBuilder, MemoryPool.NONE, logContext);
     }
 
     public Selector(int maxReceiveSize,
                     long connectionMaxIdleMs,
                     Metrics metrics,
                     Time time,
+                    int connectTimeoutMs,
                     String metricGrpPrefix,
                     Map<String, String> metricTags,
                     boolean metricsPerConnection,
                     ChannelBuilder channelBuilder,
                     LogContext logContext) {
-        this(maxReceiveSize, connectionMaxIdleMs, NO_FAILED_AUTHENTICATION_DELAY, metrics, time, metricGrpPrefix, metricTags, metricsPerConnection, channelBuilder, logContext);
+        this(maxReceiveSize, connectionMaxIdleMs, NO_FAILED_AUTHENTICATION_DELAY, metrics, time, connectTimeoutMs, metricGrpPrefix, metricTags, metricsPerConnection, channelBuilder, logContext);
     }
 
-    public Selector(long connectionMaxIdleMS, Metrics metrics, Time time, String metricGrpPrefix, ChannelBuilder channelBuilder, LogContext logContext) {
-        this(NetworkReceive.UNLIMITED, connectionMaxIdleMS, metrics, time, metricGrpPrefix, Collections.emptyMap(), true, channelBuilder, logContext);
+    public Selector(long connectionMaxIdleMS, Metrics metrics, Time time, int connectTimeoutMs, String metricGrpPrefix, ChannelBuilder channelBuilder, LogContext logContext) {
+        this(NetworkReceive.UNLIMITED, connectionMaxIdleMS, metrics, time, connectTimeoutMs, metricGrpPrefix, Collections.emptyMap(), true, channelBuilder, logContext);
     }
 
-    public Selector(long connectionMaxIdleMS, int failedAuthenticationDelayMs, Metrics metrics, Time time, String metricGrpPrefix, ChannelBuilder channelBuilder, LogContext logContext) {
-        this(NetworkReceive.UNLIMITED, connectionMaxIdleMS, failedAuthenticationDelayMs, metrics, time, metricGrpPrefix, Collections.<String, String>emptyMap(), true, channelBuilder, logContext);
+    public Selector(long connectionMaxIdleMS, int failedAuthenticationDelayMs, Metrics metrics, Time time, int connectTimeoutMs, String metricGrpPrefix, ChannelBuilder channelBuilder, LogContext logContext) {
+        this(NetworkReceive.UNLIMITED, connectionMaxIdleMS, failedAuthenticationDelayMs, metrics, time, connectTimeoutMs, metricGrpPrefix, Collections.<String, String>emptyMap(), true, channelBuilder, logContext);
     }
 
     /**
@@ -263,6 +271,8 @@ public class Selector implements Selectable, AutoCloseable {
                 log.debug("Immediately connected to node {}", id);
                 immediatelyConnectedKeys.add(key);
                 key.interestOps(0);
+            } else {
+                this.connecting.put(id, time.nanoseconds());
             }
         } catch (IOException | RuntimeException e) {
             if (key != null)
@@ -506,6 +516,8 @@ public class Selector implements Selectable, AutoCloseable {
         // have just been processed in pollSelectionKeys
         maybeCloseOldestConnection(endSelect);
 
+        checkTimeoutConnectingChannels(endSelect);
+
         // Add to completedReceives after closing expired connections to avoid removing
         // channels with completed receives until all staged receives are completed.
         addToCompletedReceives();
@@ -536,6 +548,7 @@ public class Selector implements Selectable, AutoCloseable {
                 /* complete any connections that have finished their handshake (either normally or immediately) */
                 if (isImmediatelyConnected || key.isConnectable()) {
                     if (channel.finishConnect()) {
+                        this.connecting.remove(nodeId);
                         this.connected.add(nodeId);
                         this.sensors.connectionCreated.record();
 
@@ -796,6 +809,29 @@ public class Selector implements Selectable, AutoCloseable {
         }
     }
 
+    private void checkTimeoutConnectingChannels(long currentTimeNanos) {
+        if (!connecting.isEmpty()) {
+            HashSet<String> purge = new HashSet<>();
+
+            for (final Map.Entry<String, Long> entry : connecting.entrySet()) {
+                long startConnectTimeNanos = entry.getValue();
+                if (currentTimeNanos > startConnectTimeNanos + connectTimeoutNanos) {
+                    String id = entry.getKey();
+                    long timeoutMs = (currentTimeNanos - startConnectTimeNanos) / 1000L / 1000L;
+                    log.warn("Timed out connecting to node {} after {}ms", id, timeoutMs);
+                    purge.add(id);
+                }
+            }
+
+            for (final String id : purge) {
+                KafkaChannel channel = channels.get(id);
+                if (channel != null) {
+                    close(channel, CloseMode.GRACEFUL);
+                }
+            }
+        }
+    }
+
     /**
      * Clear the results from the prior poll
      */
@@ -906,6 +942,7 @@ public class Selector implements Selectable, AutoCloseable {
             doClose(channel, closeMode.notifyDisconnect);
         }
         this.channels.remove(channel.id());
+        this.connecting.remove(channel.id());
 
         if (delayedClosingChannels != null)
             delayedClosingChannels.remove(channel.id());

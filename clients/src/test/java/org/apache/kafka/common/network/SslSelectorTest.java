@@ -76,7 +76,7 @@ public class SslSelectorTest extends SelectorTest {
         this.channelBuilder = new SslChannelBuilder(Mode.CLIENT, null, false);
         this.channelBuilder.configure(sslClientConfigs);
         this.metrics = new Metrics();
-        this.selector = new Selector(5000, metrics, time, "MetricGroup", channelBuilder, new LogContext());
+        this.selector = new Selector(5000, metrics, time, 5000, "MetricGroup", channelBuilder, new LogContext());
     }
 
     @After
@@ -114,7 +114,7 @@ public class SslSelectorTest extends SelectorTest {
         ChannelBuilder channelBuilder = new TestSslChannelBuilder(Mode.CLIENT);
         channelBuilder.configure(sslClientConfigs);
         Metrics metrics = new Metrics();
-        Selector selector = new Selector(5000, metrics, time, "MetricGroup", channelBuilder, new LogContext());
+        Selector selector = new Selector(5000, metrics, time, 5000, "MetricGroup", channelBuilder, new LogContext());
 
         selector.connect(node, new InetSocketAddress("localhost", server.port), BUFFER_SIZE, BUFFER_SIZE);
         while (!selector.connected().contains(node))
@@ -153,7 +153,7 @@ public class SslSelectorTest extends SelectorTest {
 
         this.channelBuilder = new TestSslChannelBuilder(Mode.CLIENT);
         this.channelBuilder.configure(sslClientConfigs);
-        this.selector = new Selector(5000, metrics, time, "MetricGroup", channelBuilder, new LogContext());
+        this.selector = new Selector(5000, metrics, time, 5000, "MetricGroup", channelBuilder, new LogContext());
         connect(node, new InetSocketAddress("localhost", server.port));
         selector.send(createSend(node, request));
 
@@ -195,7 +195,7 @@ public class SslSelectorTest extends SelectorTest {
 
         this.channelBuilder = new TestSslChannelBuilder(Mode.CLIENT);
         this.channelBuilder.configure(sslClientConfigs);
-        this.selector = new Selector(5000, metrics, time, "MetricGroup", channelBuilder, new LogContext()) {
+        this.selector = new Selector(5000, metrics, time, 5000, "MetricGroup", channelBuilder, new LogContext()) {
             @Override
             void pollSelectionKeys(Set<SelectionKey> selectionKeys, boolean isImmediatelyConnected, long currentTimeNanos) {
                 for (SelectionKey key : selectionKeys) {
@@ -280,7 +280,7 @@ public class SslSelectorTest extends SelectorTest {
         Map<String, Object> sslServerConfigs = TestSslUtils.createSslConfig(false, true, Mode.SERVER, trustStoreFile, "server");
         channelBuilder = new SslChannelBuilder(Mode.SERVER, null, false);
         channelBuilder.configure(sslServerConfigs);
-        selector = new Selector(NetworkReceive.UNLIMITED, 5000, metrics, time, "MetricGroup",
+        selector = new Selector(NetworkReceive.UNLIMITED, 5000, metrics, time, 5000, "MetricGroup",
                 new HashMap<String, String>(), true, false, channelBuilder, pool, new LogContext());
 
         try (ServerSocketChannel ss = ServerSocketChannel.open()) {

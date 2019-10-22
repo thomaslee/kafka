@@ -69,7 +69,6 @@ import java.util.stream.Collectors;
  * This class is not thread-safe!
  */
 public class NetworkClient implements KafkaClient {
-
     private enum State {
         ACTIVE,
         CLOSING,
@@ -106,6 +105,9 @@ public class NetworkClient implements KafkaClient {
     /* default timeout for individual requests to await acknowledgement from servers */
     private final int defaultRequestTimeoutMs;
 
+    /* maximum allowed time to wait for a SYN acknowledgement when connecting to a broker */
+    private final int connectTimeoutMs;
+
     /* time in ms to wait before retrying to create connection to a server */
     private final long reconnectBackoffMs;
 
@@ -137,6 +139,7 @@ public class NetworkClient implements KafkaClient {
                          int socketSendBuffer,
                          int socketReceiveBuffer,
                          int defaultRequestTimeoutMs,
+                         int connectTimeoutMs,
                          ClientDnsLookup clientDnsLookup,
                          Time time,
                          boolean discoverBrokerVersions,
@@ -152,6 +155,7 @@ public class NetworkClient implements KafkaClient {
              socketSendBuffer,
              socketReceiveBuffer,
              defaultRequestTimeoutMs,
+             connectTimeoutMs,
              clientDnsLookup,
              time,
              discoverBrokerVersions,
@@ -169,6 +173,7 @@ public class NetworkClient implements KafkaClient {
             int socketSendBuffer,
             int socketReceiveBuffer,
             int defaultRequestTimeoutMs,
+            int connectTimeoutMs,
             ClientDnsLookup clientDnsLookup,
             Time time,
             boolean discoverBrokerVersions,
@@ -185,6 +190,7 @@ public class NetworkClient implements KafkaClient {
              socketSendBuffer,
              socketReceiveBuffer,
              defaultRequestTimeoutMs,
+             connectTimeoutMs,
              clientDnsLookup,
              time,
              discoverBrokerVersions,
@@ -202,6 +208,7 @@ public class NetworkClient implements KafkaClient {
                          int socketSendBuffer,
                          int socketReceiveBuffer,
                          int defaultRequestTimeoutMs,
+                         int connectTimeoutMs,
                          ClientDnsLookup clientDnsLookup,
                          Time time,
                          boolean discoverBrokerVersions,
@@ -217,6 +224,7 @@ public class NetworkClient implements KafkaClient {
              socketSendBuffer,
              socketReceiveBuffer,
              defaultRequestTimeoutMs,
+             connectTimeoutMs,
              clientDnsLookup,
              time,
              discoverBrokerVersions,
@@ -235,6 +243,7 @@ public class NetworkClient implements KafkaClient {
                           int socketSendBuffer,
                           int socketReceiveBuffer,
                           int defaultRequestTimeoutMs,
+                          int connectTimeoutMs,
                           ClientDnsLookup clientDnsLookup,
                           Time time,
                           boolean discoverBrokerVersions,
@@ -261,6 +270,7 @@ public class NetworkClient implements KafkaClient {
         this.correlation = 0;
         this.randOffset = new Random();
         this.defaultRequestTimeoutMs = defaultRequestTimeoutMs;
+        this.connectTimeoutMs = connectTimeoutMs;
         this.reconnectBackoffMs = reconnectBackoffMs;
         this.time = time;
         this.discoverBrokerVersions = discoverBrokerVersions;
@@ -544,7 +554,7 @@ public class NetworkClient implements KafkaClient {
 
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
         try {
-            this.selector.poll(Utils.min(timeout, metadataTimeout, defaultRequestTimeoutMs));
+            this.selector.poll(Utils.min(timeout, metadataTimeout, defaultRequestTimeoutMs, connectTimeoutMs));
         } catch (IOException e) {
             log.error("Unexpected error during I/O", e);
         }

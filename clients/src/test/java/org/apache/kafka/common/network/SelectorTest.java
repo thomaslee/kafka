@@ -96,7 +96,7 @@ public class SelectorTest {
         this.channelBuilder = new PlaintextChannelBuilder(ListenerName.forSecurityProtocol(SecurityProtocol.PLAINTEXT));
         this.channelBuilder.configure(configs);
         this.metrics = new Metrics();
-        this.selector = new Selector(5000, this.metrics, time, METRIC_GROUP, channelBuilder, new LogContext());
+        this.selector = new Selector(5000, this.metrics, time, 5000, METRIC_GROUP, channelBuilder, new LogContext());
     }
 
     @After
@@ -378,7 +378,7 @@ public class SelectorTest {
             public void close() {
             }
         };
-        Selector selector = new Selector(5000, new Metrics(), new MockTime(), "MetricGroup", channelBuilder, new LogContext());
+        Selector selector = new Selector(5000, new Metrics(), new MockTime(), 5000, "MetricGroup", channelBuilder, new LogContext());
         SocketChannel socketChannel = SocketChannel.open();
         socketChannel.configureBlocking(false);
         try {
@@ -437,6 +437,19 @@ public class SelectorTest {
     }
 
     @Test
+    public void testConnectWithTimeoutFailure() throws IOException {
+        String id = "0";
+        Selector selector = new TimeoutSelector(5000, metrics, time, 1000, "MyMetricGroup", channelBuilder, new LogContext());
+        selector.connect(id, new InetSocketAddress("localhost", server.port), BUFFER_SIZE, BUFFER_SIZE);
+
+        time.sleep(2000);
+        selector.poll(0);
+
+        assertTrue("The connect attempt should have timed out", selector.disconnected().containsKey(id));
+        assertEquals(ChannelState.NOT_CONNECTED, selector.disconnected().get(id));
+    }
+
+    @Test
     public void testImmediatelyConnectedCleaned() throws Exception {
         Metrics metrics = new Metrics(); // new metrics object to avoid metric registration conflicts
         Selector selector = new ImmediatelyConnectingSelector(5000, metrics, time, "MetricGroup", channelBuilder, new LogContext());
@@ -450,6 +463,18 @@ public class SelectorTest {
         }
     }
 
+    private static class TimeoutSelector extends Selector {
+        public TimeoutSelector(long connectionMaxIdleMs, Metrics metrics, Time time, int connectTimeoutMs,
+            String metricGrpPrefix, ChannelBuilder channelBuilder, LogContext logContext) {
+            super(connectionMaxIdleMs, metrics, time, connectTimeoutMs, metricGrpPrefix, channelBuilder, logContext);
+        }
+
+        @Override protected boolean doConnect(SocketChannel channel, InetSocketAddress address) throws IOException {
+            // don't actually connect
+            return false;
+        }
+    }
+
     private static class ImmediatelyConnectingSelector extends Selector {
         public ImmediatelyConnectingSelector(long connectionMaxIdleMS,
                                              Metrics metrics,
@@ -457,7 +482,7 @@ public class SelectorTest {
                                              String metricGrpPrefix,
                                              ChannelBuilder channelBuilder,
                                              LogContext logContext) {
-            super(connectionMaxIdleMS, metrics, time, metricGrpPrefix, channelBuilder, logContext);
+            super(connectionMaxIdleMS, metrics, time, 5000, metricGrpPrefix, channelBuilder, logContext);
         }
 
         @Override
@@ -592,7 +617,7 @@ public class SelectorTest {
         //clean up default selector, replace it with one that uses a finite mem pool
         selector.close();
         MemoryPool pool = new SimpleMemoryPool(900, 900, false, null);
-        selector = new Selector(NetworkReceive.UNLIMITED, 5000, metrics, time, "MetricGroup",
+        selector = new Selector(NetworkReceive.UNLIMITED, 5000, metrics, time, 5000, "MetricGroup",
             new HashMap<String, String>(), true, false, channelBuilder, pool, new LogContext());
 
         try (ServerSocketChannel ss = ServerSocketChannel.open()) {

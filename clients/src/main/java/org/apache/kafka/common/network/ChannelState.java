@@ -102,4 +102,13 @@ public class ChannelState {
     public String remoteAddress() {
         return remoteAddress;
     }
+
+    @Override
+    public String toString() {
+        return "ChannelState(" +
+            "state=" + state + ", " +
+            "remoteAddress=" + remoteAddress + ", " +
+            "exception=" + exception +
+            ")";
+    }
 }

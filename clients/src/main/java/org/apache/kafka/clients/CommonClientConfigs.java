@@ -101,6 +101,10 @@ public class CommonClientConfigs {
                                                          + "elapses the client will resend the request if necessary or fail the request if "
                                                          + "retries are exhausted.";
 
+    public static final String CONNECT_TIMEOUT_MS_CONFIG = "connect.timeout.ms";
+    public static final String CONNECT_TIMEOUT_MS_DOC = "This configuration controls the maximum amount of time the client will wait for a SYN " +
+                                                        "acknowledgement when connecting to brokers.";
+
     public static final String GROUP_ID_CONFIG = "group.id";
     public static final String GROUP_ID_DOC = "A unique string that identifies the consumer group this consumer belongs to. This property is required if the consumer uses either the group management functionality by using <code>subscribe(topic)</code> or the Kafka-based offset management strategy.";
 

@@ -111,6 +111,10 @@ public class ProducerConfig extends AbstractConfig {
         + " This should be larger than <code>replica.lag.time.max.ms</code> (a broker configuration)"
         + " to reduce the possibility of message duplication due to unnecessary producer retries.";
 
+    /** <code>connect.timeout.ms</code> */
+    public static final String CONNECT_TIMEOUT_MS_CONFIG = CommonClientConfigs.CONNECT_TIMEOUT_MS_CONFIG;
+    private static final String CONNECT_TIMEOUT_MS_DOC = CommonClientConfigs.CONNECT_TIMEOUT_MS_DOC;
+
     /** <code>delivery.timeout.ms</code> */
     public static final String DELIVERY_TIMEOUT_MS_CONFIG = "delivery.timeout.ms";
     private static final String DELIVERY_TIMEOUT_MS_DOC = "An upper bound on the time to report success or failure "
@@ -295,6 +299,12 @@ public class ProducerConfig extends AbstractConfig {
                                         atLeast(0),
                                         Importance.MEDIUM,
                                         REQUEST_TIMEOUT_MS_DOC)
+                                .define(CONNECT_TIMEOUT_MS_CONFIG,
+                                        Type.INT,
+                                        5 * 1000,
+                                        atLeast(0),
+                                        Importance.MEDIUM,
+                                        CONNECT_TIMEOUT_MS_DOC)
                                 .define(METADATA_MAX_AGE_CONFIG, Type.LONG, 5 * 60 * 1000, atLeast(0), Importance.LOW, METADATA_MAX_AGE_DOC)
                                 .define(METRICS_SAMPLE_WINDOW_MS_CONFIG,
                                         Type.LONG,

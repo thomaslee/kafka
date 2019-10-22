@@ -225,6 +225,10 @@ public class ConsumerConfig extends AbstractConfig {
     public static final String DEFAULT_API_TIMEOUT_MS_CONFIG = "default.api.timeout.ms";
     public static final String DEFAULT_API_TIMEOUT_MS_DOC = "Specifies the timeout (in milliseconds) for consumer APIs that could block. This configuration is used as the default timeout for all consumer operations that do not explicitly accept a <code>timeout</code> parameter.";
 
+    /** <code>connect.timeout.ms</code> */
+    public static final String CONNECT_TIMEOUT_MS_CONFIG = CommonClientConfigs.CONNECT_TIMEOUT_MS_CONFIG;
+    public static final String CONNECT_TIMEOUT_MS_DOC = CommonClientConfigs.CONNECT_TIMEOUT_MS_DOC;
+
     /** <code>interceptor.classes</code> */
     public static final String INTERCEPTOR_CLASSES_CONFIG = "interceptor.classes";
     public static final String INTERCEPTOR_CLASSES_DOC = "A list of classes to use as interceptors. "
@@ -448,6 +452,12 @@ public class ConsumerConfig extends AbstractConfig {
                                         atLeast(0),
                                         Importance.MEDIUM,
                                         DEFAULT_API_TIMEOUT_MS_DOC)
+                                .define(CONNECT_TIMEOUT_MS_CONFIG,
+                                        Type.INT,
+                                        5 * 1000,
+                                        atLeast(0),
+                                        Importance.MEDIUM,
+                                        CONNECT_TIMEOUT_MS_DOC)
                                 /* default is set to be a bit lower than the server default (10 min), to avoid both client and server closing connection at same time */
                                 .define(CONNECTIONS_MAX_IDLE_MS_CONFIG,
                                         Type.LONG,

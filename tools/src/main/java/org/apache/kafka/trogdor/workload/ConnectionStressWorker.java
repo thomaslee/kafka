@@ -164,7 +164,7 @@ public class ConnectionStressWorker implements TaskWorker {
                 try (Metrics metrics = new Metrics()) {
                     LogContext logContext = new LogContext();
                     try (Selector selector = new Selector(conf.getLong(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG),
-                        metrics, TIME, "", channelBuilder, logContext)) {
+                        metrics, TIME, conf.getInt(AdminClientConfig.CONNECT_TIMEOUT_MS_CONFIG), "", channelBuilder, logContext)) {
                         try (NetworkClient client = new NetworkClient(selector,
                             updater,
                             "ConnectionStressWorker",
@@ -174,6 +174,7 @@ public class ConnectionStressWorker implements TaskWorker {
                             4096,
                             4096,
                             1000,
+                            5000,
                             ClientDnsLookup.forConfig(conf.getString(AdminClientConfig.CLIENT_DNS_LOOKUP_CONFIG)),
                             TIME,
                             false,

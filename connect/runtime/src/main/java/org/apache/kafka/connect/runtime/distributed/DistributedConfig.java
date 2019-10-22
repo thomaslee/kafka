@@ -246,6 +246,12 @@ public class DistributedConfig extends WorkerConfig {
                     ConfigDef.Importance.MEDIUM,
                     CommonClientConfigs.REQUEST_TIMEOUT_MS_DOC)
                     /* default is set to be a bit lower than the server default (10 min), to avoid both client and server closing connection at same time */
+            .define(CommonClientConfigs.CONNECT_TIMEOUT_MS_CONFIG,
+                    ConfigDef.Type.INT,
+                    Math.toIntExact(TimeUnit.SECONDS.toMillis(5)),
+                    atLeast(0),
+                    ConfigDef.Importance.MEDIUM,
+                    CommonClientConfigs.CONNECT_TIMEOUT_MS_DOC)
             .define(CommonClientConfigs.CONNECTIONS_MAX_IDLE_MS_CONFIG,
                     ConfigDef.Type.LONG,
                     TimeUnit.MINUTES.toMillis(9),

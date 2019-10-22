@@ -78,6 +78,10 @@ public class AdminClientConfig extends AbstractConfig {
     public static final String REQUEST_TIMEOUT_MS_CONFIG = CommonClientConfigs.REQUEST_TIMEOUT_MS_CONFIG;
     private static final String REQUEST_TIMEOUT_MS_DOC = CommonClientConfigs.REQUEST_TIMEOUT_MS_DOC;
 
+    /** <code>connect.timeout.ms</code> */
+    public static final String CONNECT_TIMEOUT_MS_CONFIG = CommonClientConfigs.CONNECT_TIMEOUT_MS_CONFIG;
+    private static final String CONNECT_TIMEOUT_MS_DOC = CommonClientConfigs.CONNECT_TIMEOUT_MS_DOC;
+
     public static final String CLIENT_ID_CONFIG = CommonClientConfigs.CLIENT_ID_CONFIG;
     private static final String CLIENT_ID_DOC = CommonClientConfigs.CLIENT_ID_DOC;
 
@@ -147,6 +151,12 @@ public class AdminClientConfig extends AbstractConfig {
                                         atLeast(0),
                                         Importance.MEDIUM,
                                         REQUEST_TIMEOUT_MS_DOC)
+                                .define(CONNECT_TIMEOUT_MS_CONFIG,
+                                        Type.INT,
+                                        5000,
+                                        atLeast(0),
+                                        Importance.MEDIUM,
+                                        CONNECT_TIMEOUT_MS_DOC)
                                 .define(CONNECTIONS_MAX_IDLE_MS_CONFIG,
                                         Type.LONG,
                                         5 * 60 * 1000,

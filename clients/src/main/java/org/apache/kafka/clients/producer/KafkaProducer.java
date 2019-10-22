@@ -255,6 +255,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
     private final ProducerInterceptors<K, V> interceptors;
     private final ApiVersions apiVersions;
     private final TransactionManager transactionManager;
+    private final int connectTimeoutMs;
 
     /**
      * A producer is instantiated by providing a set of key-value pairs as configuration. Valid configuration strings
@@ -390,6 +391,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             this.maxBlockTimeMs = config.getLong(ProducerConfig.MAX_BLOCK_MS_CONFIG);
             this.transactionManager = configureTransactionState(config, logContext, log);
             int deliveryTimeoutMs = configureDeliveryTimeout(config, log);
+            this.connectTimeoutMs = config.getInt(ProducerConfig.CONNECT_TIMEOUT_MS_CONFIG);
 
             this.apiVersions = new ApiVersions();
             this.accumulator = new RecordAccumulator(logContext,
@@ -452,7 +454,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
         Sensor throttleTimeSensor = Sender.throttleTimeSensor(metricsRegistry.senderMetrics);
         KafkaClient client = kafkaClient != null ? kafkaClient : new NetworkClient(
                 new Selector(producerConfig.getLong(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG),
-                        this.metrics, time, "producer", channelBuilder, logContext),
+                        this.metrics, time, connectTimeoutMs, "producer", channelBuilder, logContext),
                 metadata,
                 clientId,
                 maxInflightRequests,
@@ -461,6 +463,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                 producerConfig.getInt(ProducerConfig.SEND_BUFFER_CONFIG),
                 producerConfig.getInt(ProducerConfig.RECEIVE_BUFFER_CONFIG),
                 requestTimeoutMs,
+                connectTimeoutMs,
                 ClientDnsLookup.forConfig(producerConfig.getString(ProducerConfig.CLIENT_DNS_LOOKUP_CONFIG)),
                 time,
                 true,

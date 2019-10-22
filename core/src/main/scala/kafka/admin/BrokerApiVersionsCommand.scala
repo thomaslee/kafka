@@ -207,6 +207,7 @@ object BrokerApiVersionsCommand {
   private object AdminClient {
     val DefaultConnectionMaxIdleMs = 9 * 60 * 1000
     val DefaultRequestTimeoutMs = 5000
+    val DefaultConnectTimeoutMs = 5000
     val DefaultMaxInFlightRequestsPerConnection = 100
     val DefaultReconnectBackoffMs = 50
     val DefaultReconnectBackoffMax = 50
@@ -243,6 +244,12 @@ object BrokerApiVersionsCommand {
           ConfigDef.Importance.MEDIUM,
           CommonClientConfigs.REQUEST_TIMEOUT_MS_DOC)
         .define(
+          CommonClientConfigs.CONNECT_TIMEOUT_MS_CONFIG,
+          ConfigDef.Type.INT,
+          DefaultConnectTimeoutMs,
+          ConfigDef.Importance.MEDIUM,
+          CommonClientConfigs.CONNECT_TIMEOUT_MS_DOC)
+        .define(
           CommonClientConfigs.RETRY_BACKOFF_MS_CONFIG,
           ConfigDef.Type.LONG,
           DefaultRetryBackoffMs,
@@ -273,6 +280,7 @@ object BrokerApiVersionsCommand {
         new ClusterResourceListeners)
       val channelBuilder = ClientUtils.createChannelBuilder(config, time)
       val requestTimeoutMs = config.getInt(CommonClientConfigs.REQUEST_TIMEOUT_MS_CONFIG)
+      val connectTimeoutMs = config.getInt(CommonClientConfigs.CONNECT_TIMEOUT_MS_CONFIG)
       val retryBackoffMs = config.getLong(CommonClientConfigs.RETRY_BACKOFF_MS_CONFIG)
 
       val brokerUrls = config.getList(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG)
@@ -284,6 +292,7 @@ object BrokerApiVersionsCommand {
         DefaultConnectionMaxIdleMs,
         metrics,
         time,
+        connectTimeoutMs,
         "admin",
         channelBuilder,
         logContext)
@@ -298,6 +307,7 @@ object BrokerApiVersionsCommand {
         DefaultSendBufferBytes,
         DefaultReceiveBufferBytes,
         requestTimeoutMs,
+        connectTimeoutMs,
         ClientDnsLookup.DEFAULT,
         time,
         true,
